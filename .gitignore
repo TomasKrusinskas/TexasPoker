@@ -1,0 +1,25 @@
+# IDE
+.idea/
+
+# Node (frontend)
+node_modules/
+.next/
+.swc/
+
+# Python (backend)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Env files
+.env
+.env.local
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Next.js auto-generated
+next-env.d.ts
+

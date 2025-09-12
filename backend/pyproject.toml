@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "poker-backend"
+version = "0.1.0"
+description = "Texas Hold'em Poker Backend"
+authors = ["Tomas Krusinskas <tomaskrusinskas1@gmail.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+python-dotenv = "^1.0.0"
+psycopg2-binary = "^2.9.9"
+pokerkit = "^0.5.0"
+httpx = "^0.26.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+pytest-asyncio = "^0.23.0"
+black = "^23.12.0"
+flake8 = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
