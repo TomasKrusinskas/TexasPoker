@@ -11,13 +11,15 @@ Docker and Docker Compose
 Running the Application
 Clone the repository:
 git clone https://github.com/TomasKrusinskas/TexasPoker.git
-cd TexasPoker
-Start the application:
-bash
-docker compose up -d
-Access the game at: http://localhost:3000
-The application will be fully ready after the containers start up - no additional setup required.
 
+cd TexasPoker
+
+Start the application:
+
+docker compose up -d
+
+Access the game at: http://localhost:3000
+Backend health check can be accessed http://localhost:8000/health
 # How to Play
 Game Setup
 
