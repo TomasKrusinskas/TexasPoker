@@ -76,11 +76,14 @@ class Hand:
 
         lines.append(f"Actions: {self.actions}")
 
-        winnings_str = "Winnings: "
-        for player_num in sorted(self.winnings.keys()):
-            amount = self.winnings[player_num]
-            sign = "+" if amount > 0 else ""
-            winnings_str += f"Player {player_num}: {sign}{amount}; "
-        lines.append(winnings_str.rstrip("; "))
+        if self.winnings:
+            winnings_str = "Winnings: "
+            for player_num in sorted(self.winnings.keys()):
+                amount = self.winnings[player_num]
+                sign = "+" if amount > 0 else ""
+                winnings_str += f"Player {player_num}: {sign}{amount}; "
+            lines.append(winnings_str.rstrip("; "))
+        else:
+            lines.append("Winnings: Not calculated")
 
         return lines

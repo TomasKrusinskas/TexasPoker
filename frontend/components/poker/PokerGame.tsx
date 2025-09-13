@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import GameControls from './GameControls';
 import PlayLog from './PlayLog';
@@ -19,7 +19,10 @@ export default function PokerGame() {
         createInitialGameState(stackSize, false)
     );
     const [logs, setLogs] = useState<string[]>([]);
-    const [handSaved, setHandSaved] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+
+    const saveAttempted = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         const newLogs = formatActionLog(gameState);
@@ -27,13 +30,27 @@ export default function PokerGame() {
     }, [gameState]);
 
     useEffect(() => {
-        if (gameState.isComplete && !gameState.winnings && !handSaved) {
+        if (gameState.isComplete &&
+            !gameState.winnings &&
+            !isSaving &&
+            gameState.players[0].cards &&
+            !saveAttempted.current.has(gameState.handId)) {
+
+            saveAttempted.current.add(gameState.handId);
             saveHandToBackend();
         }
-    }, [gameState.isComplete, gameState.winnings, handSaved]);
+    }, [gameState.isComplete, gameState.winnings, isSaving, gameState.handId, gameState.players]);
 
     const saveHandToBackend = async () => {
+        if (isSaving) {
+            console.log('Already saving, skipping duplicate save attempt');
+            return;
+        }
+
         try {
+            setIsSaving(true);
+            setSaveError(null);
+
             if (!gameState.players[0].cards) {
                 console.log('Cannot save hand: no cards dealt');
                 return;
@@ -41,6 +58,7 @@ export default function PokerGame() {
 
             const playerCards: Record<string, string> = {};
             let hasValidCards = false;
+
             gameState.players.forEach(p => {
                 if (p.cards && p.cards.length >= 4) {
                     playerCards[p.position.toString()] = p.cards;
@@ -53,7 +71,6 @@ export default function PokerGame() {
                 return;
             }
 
-            // Ensure board cards are properly formatted
             const boardCards = gameState.boardCards || null;
 
             const handData: HandCreateRequest = {
@@ -67,20 +84,16 @@ export default function PokerGame() {
                 board_cards: boardCards,
             };
 
-            console.log('Saving hand:', handData);
-            console.log('Game state pot:', gameState.pot);
-            console.log('Actions being sent:', JSON.stringify(handData.actions, null, 2));
+            console.log('Saving hand:', handData.hand_id);
+            console.log('Actions being sent:', gameState.actions.length, 'actions');
 
-            setHandSaved(true); // Prevent duplicate saves
             const response = await handsApi.create(handData);
 
-            // Update state with winnings from backend
             setGameState(prev => ({
                 ...prev,
                 winnings: response.winnings,
             }));
 
-            // Add winnings to log
             const winningsLog: string[] = ['', 'Winnings:'];
             Object.entries(response.winnings).forEach(([player, amount]) => {
                 const sign = amount > 0 ? '+' : '';
@@ -88,12 +101,31 @@ export default function PokerGame() {
             });
             setLogs(prev => [...prev, ...winningsLog]);
 
+            console.log('Hand saved successfully');
+
         } catch (error) {
             console.error('Failed to save hand:', error);
-            if (axios.isAxiosError(error) && error.response) {
-                console.error('Server error:', error.response.data);
+
+            if (axios.isAxiosError(error)) {
+                if (error.response?.status === 409) {
+                    console.log('Hand already exists (409), not retrying');
+                    setSaveError('Hand already saved');
+                } else if (error.response?.status === 500) {
+                    console.error('Server error (500):', error.response.data);
+                    setSaveError('Server error - check backend logs');
+                } else if (error.code === 'ERR_NETWORK') {
+                    setSaveError('Network error - check if backend is running');
+                } else {
+                    setSaveError(`HTTP ${error.response?.status}: ${error.message}`);
+                }
+            } else {
+                setSaveError(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-            setHandSaved(false); // Allow retry on error
+
+            saveAttempted.current.delete(gameState.handId);
+
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -105,7 +137,9 @@ export default function PokerGame() {
     const handleReset = () => {
         const newState = createInitialGameState(stackSize, true);
         setGameState(newState);
-        setHandSaved(false); // Reset the saved flag for new hand
+
+        saveAttempted.current.clear();
+        setSaveError(null);
     };
 
     const handleStackChange = (newStack: number) => {
@@ -131,6 +165,22 @@ export default function PokerGame() {
                     onStackChange={handleStackChange}
                     stackSize={stackSize}
                 />
+
+                {/* Error Display */}
+                {saveError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        <div className="font-bold">Save Error:</div>
+                        <div>{saveError}</div>
+                    </div>
+                )}
+
+                {/* Saving Indicator */}
+                {isSaving && (
+                    <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+                        Saving hand to backend...
+                    </div>
+                )}
+
                 <div className="flex-1">
                     <PlayLog logs={logs} />
                 </div>
